@@ -1,0 +1,6 @@
+---
+- hosts: mongo_servers
+  become: yes
+  roles:
+    - Mongo
+

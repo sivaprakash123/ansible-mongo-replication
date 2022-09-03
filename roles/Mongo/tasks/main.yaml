@@ -1,0 +1,89 @@
+
+---
+- name: Tempalate for mongorepo
+  template:
+    src: mongo.repo.j2
+    dest: /etc/yum.repos.d/mongo.repo
+
+- name: Install mongodb-org package
+  yum:
+   name: mongodb-org
+   state: present
+
+- name: Start the service
+  service:
+    name: mongod
+    state: started
+
+- name: "Update Hostnames"
+  hostname:
+    name: "{{ new_hostname }}"
+
+#- name: 'Add hostname to /etc/hosts'
+#  lineinfile:
+#    path: /etc/hosts
+#    regexp: '^127\.0\.0\.1[ \t]+localhost'
+#    line: '127.0.0.1 localhost {{ new_hostname }}'
+#    state: present
+
+- name: Copy the mongo configuration file
+  template:
+    src: mongod.conf.j2
+    dest: /etc/mongod.conf
+
+- name: Restart the service
+  service:
+    name: mongod
+    state: restarted
+
+- name: Create the file to initiate the replica set
+  template: src=repset_init.j2 dest=/tmp/repset_init.js
+  when: "'mongod_primary' in group_names"
+
+- name: Call out and initiate the replication set, just in case it hasn't already
+  shell: /usr/bin/mongo --host {{ hostvars[groups["mongod_primary"][0]]["private_ip"] }} /tmp/repset_init.js
+  args:
+    creates: initiateReplicaset
+  when: "'mongod_primary' in group_names"
+
+- name: Create the file to add the current node to the replica set
+  template: src=repset_add.j2 dest=/tmp/repset_add.js
+  when: "'mongod_primary' in group_names"
+  
+- name: Create the file to add the current node to the replica set as an arbiter
+  template: src=repset_addArbiter.j2 dest=/tmp/repset_addArbiter.js
+  when: "'mongod_primary' in group_names"
+  
+- name: Add the current node to the replication set
+  shell: /usr/bin/mongo --host {{ hostvars[groups["mongod_primary"][0]]["private_ip"] }} /tmp/repset_add.js
+  args:
+    creates: addNodeToReplicaset
+  when: "'mongod_primary' in group_names"
+
+- name: Add arbiter to the replication set
+  shell: /usr/bin/mongo -host {{ hostvars[groups["mongod_primary"][0]]["private_ip"] }} /tmp/repset_addArbiter.js
+  args:
+    creates: addArbiterToReplicaset
+  when: "'mongod_primary' in group_names"
+
+- name: Create the file to initiate the slave node
+  template: src=node_init.j2 dest=/tmp/node_init.js
+  when: "'mongod_slaves' in group_names"
+
+- name: Call out and initiate the replication set, just in case it hasn't already
+  shell: /usr/bin/mongo --host {{ hostvars[groups["mongod_slaves"][0]]["private_ip"] }} /tmp/node_init.js
+  args:
+    creates: initiateReplicaset
+  when: "'mongod_slaves' in group_names"
+
+- name: Create the file to initiate the slave node
+  template: src=node_init.j2 dest=/tmp/node_init.js
+  when: "'mongod_arbitor' in group_names"
+  
+- name: Call out and initiate the replication set, just in case it hasn't already
+  #shell: /usr/bin/mongo --host {{ hostvars[groups["mongod_arbitor"][0]]["private_ip"] }}:{{ hostvars[groups["mongod_slaves"][0]]["mongod_port"] }} /tmp/node_init.js
+  shell: /usr/bin/mongo --host {{ hostvars[groups["mongod_arbitor"][0]]["private_ip"] }} /tmp/node_init.js
+  args:
+    creates: initiateReplicaset
+  when: "'mongod_arbitor' in group_names"
+

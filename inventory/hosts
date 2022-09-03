@@ -1,0 +1,20 @@
+[mongo_servers]
+<pub ip> mongod_port=27017 new_hostname=test-mongo-1 private_ip=<pvt ip>
+<pub IP> mongod_port=27017 new_hostname=test-mongo-2 private_ip=<pvt ip>
+#mongo3 mongod_port=27017
+#mongo4 mongod_port=27017
+#mongo5 mongod_port=27017
+# Remember to add the machine to your /etc/hosts file
+# mongo6 mongod_port=27017
+
+[mongod_primary]
+<pub ip> mongod_port=27017 private_ip=<pvt ip>
+
+[mongod_slaves]
+<pub ip> mongod_port=27017 private_ip=<pvt ip>
+#mongo3 mongod_port=27017
+#mongo4 mongod_port=27017
+# mongo6 mongod_port=27017
+
+[mongod_arbitor]
+<pub ip> mongod_port=27017 private_ip=<pvt ip>

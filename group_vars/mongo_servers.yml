@@ -1,0 +1,2 @@
+replication_name: Rc01
+mongo_ip: '{{ private_ip }}'

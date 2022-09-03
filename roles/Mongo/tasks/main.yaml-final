@@ -1,0 +1,64 @@
+
+---
+- name: Tempalate for mongorep
+  template:
+    src: mongo.repo.j2
+    dest: /etc/yum.repos.d/mongo.repo
+
+- name: Install mongodb-org package
+  yum:
+   name: mongodb-org
+   state: present
+
+- name: Start the service
+  service:
+    name: mongod
+    state: started
+
+- name: "Update Hostnames"
+  hostname:
+    name: "{{ new_hostname }}"
+
+#- name: 'Add hostname to /etc/hosts'
+#  lineinfile:
+#    path: /etc/hosts
+#    regexp: '^127\.0\.0\.1[ \t]+localhost'
+#    line: '127.0.0.1 localhost {{ new_hostname }}'
+#    state: present
+
+- name: Copy the mongo configuration file
+  template:
+    src: mongod.conf.j2
+    dest: /etc/mongod.conf
+
+- name: Restart the service
+  service:
+    name: mongod
+    state: restarted
+
+- name: Create the file to initiate the replica set
+  template: src=repset_init.j2 dest=/tmp/repset_init.js
+
+- name: Call out and initiate the replication set, just in case it hasn't already
+  shell: /usr/bin/mongo --host {{ hostvars[groups["mongod_primary"][0]]["private_ip"] }}:{{ hostvars[groups["mongod_primary"][0]]["mongod_port"] }} /tmp/repset_init.js
+  args:
+    creates: initiateReplicaset
+
+- name: Create the file to add the current node to the replica set
+  template: src=repset_add.j2 dest=/tmp/repset_add.js
+
+- name: Add the current node to the replication set
+  shell: /usr/bin/mongo --host {{ hostvars[groups["mongod_primary"][0]]["private_ip"] }}:{{ hostvars[groups["mongod_primary"][0]]["mongod_port"] }} /tmp/repset_add.js
+  args:
+    creates: addNodeToReplicaset
+
+- name: Create the file to initiate the slave node
+  template: src=node_init.j2 dest=/tmp/node_init.js
+
+- name: Call out and initiate the replication set, just in case it hasn't already
+  shell: /usr/bin/mongo --host {{ hostvars[groups["mongod_slaves"][0]]["private_ip"] }}:{{ hostvars[groups["mongod_slaves"][0]]["mongod_port"] }} /tmp/repset_init.js
+  args:
+    creates: initiateReplicaset
+
+
+

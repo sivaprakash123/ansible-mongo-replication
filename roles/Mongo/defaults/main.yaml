@@ -1,0 +1,6 @@
+---
+mongo_ip: '{{ private_ip }}'
+replication_name: rc01
+slave: <pvt ip>
+arbiter: <pvt ip>
+mongod_port_opt: 27018
